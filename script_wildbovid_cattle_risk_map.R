@@ -1,7 +1,8 @@
 # R code for creating the hotspot maps of the risk of diseases transmission 
 # between wild bovid and domestic livestock
 # Mar 2024
-# include: Figure 4.1, 4.2, 4.4, Table 4.1-4.3 from the manuscript/.
+# include: Figure 4.1, 4.2, 4.4, Table 4.1-4.3 from the manuscript:
+# 
 
 #rm(list = ls(all.names = T))
 
@@ -13,7 +14,6 @@ library(tidyverse)
 library(scales)
 library(lattice)
 library(rasterVis)
-library(terra)
 library(xlsx)
 library(CoordinateCleaner) # for cleaning  coordinate
 
@@ -39,9 +39,6 @@ ba<-raster(habit[[2]]) #wild buffalo
 habit2<-raster::stack(bg,bj,ba)
 habit2
 plot(habit2)
-
-# Thailand boundary
-boundary <- shapefile("/Users/whorpien/OneDrive - Massey University/GIS data/AdmWorld/thailand/gadm36_THA_0.shp")
 
 #check maximum,minimum values of habitat suitability
 mini<-list()
@@ -97,28 +94,11 @@ plot(c_re2,main = 'Cattle density resample', cex.main = 1.5,
 #            format='GTiff',
 #            overwrite = TRUE)
 
-#try ggplot [Spectral colour]
-c_pt<- rasterToPoints(c_re2, spatial=TRUE)|>as.data.frame()
-head(c_pt)
-   
-#Spectral
-pal<-rev(RColorBrewer::brewer.pal(n=6,"Spectral"))
-
-ggplot()+
-  geom_tile(data = c_pt, aes(y=y, x=x, fill = cattle_cr_Da_2015))+ theme_bw() +
-  scale_fill_gradientn(colours = pal) +
-  geom_sf(data=sf::st_as_sf(boundary), fill= 'transparent',col="black", size=0.50)+
-  theme(legend.title=element_blank(), 
-        legend.position = 'bottom',  
-        strip.text = element_text(size = 10)) +
-  labs(x='Longitude', y="Latitude", 
-       title = 'Cattle density resample') 
-
 # Bivariate map  --------------------------------------------
 #import cattle density
 #c_re2<- raster("cattle_rescale01_Da_2015.tif")
 
-#png("risk_matrices.png",width = 7, height = 8,units = "cm",res=300)
+png("risk_matrices.png",width = 7, height = 8,units = "cm",res=300)
 col.matrix <- bivariatemaps::colmat( nquantiles=4,
                                      upperleft  = rgb(255,230,15, maxColorValue=255), 
                                      upperright = rgb(130,0,80, maxColorValue=255), 
@@ -127,7 +107,7 @@ col.matrix <- bivariatemaps::colmat( nquantiles=4,
                                      xlab="Habitat suitability", 
                                      ylab="Livestock density")
 
-#dev.off()
+dev.off()
 
 #Adjust bivariate.map fx 
 # add:   brks2 <- unique(brks)
@@ -176,24 +156,21 @@ for ( i in 1:length(habit3)) {
                                 colormatrix=col.matrix, 
                                 nquantiles=4) 
 }
-
+bivmap2<-raster::stack(bivmap)
 # Figure 1: Bivariate maps::cattle density and habitat suitability -------------------------
-plot.new()
-
 
 nam_plot<-c("Gaur","Banteng","Wild water buffalo")
-par(mfcol = c(1, 3))
 
-#png("risk_map_3sp_test.png",width = 20, height = 10,units = "cm",res=600)
-for ( i in 1:length(bivmap)) { 
-  plot(bivmap[[i]],frame.plot=F,axes=F,box=F,add=F,legend=F,
-       col=as.vector(col.matrix), main=nam_plot[[i]], cex.main = 1.2) 
-}
-#dev.off()
+png("risk_map_3sp_test.png",width = 20, height = 10,units = "cm",res=600)
+
+plot(bivmap2,frame.plot=F,axes=F,box=F,add=F,legend=F,
+       col=as.vector(col.matrix), main=nam_plot, cex.main = 1.2,nc=3) 
+
+dev.off()
 
 # Overlap area ---------------------
 
-# import binary map ####
+# import binary map 
 b<-intersect(list.files(pattern = "tha"),
              list.files(pattern = "bin"))
 b
@@ -250,49 +227,41 @@ par(mfcol = c(1, 3))
 
 nam_plot<-c( "Gaur","Banteng","Wild water buffalo")
 
-#png("high_risk_3sp.png",width = 20, height = 10,units = "cm",res=600)
+png("high_risk_3sp.png",width = 20, height = 10,units = "cm",res=600)
 raster::plot(hh, frame.plot = FALSE, axes = FALSE, box = FALSE, 
              add = FALSE, legend = F, 
              col = adjustcolor(as.vector(col.matrix), 
                                alpha = 1),
              main = nam_plot,
              cex.main = 1.2, nc=3)
-#dev.off()
+dev.off()
 
-# Save Rasters:: run this if we want to save High-High overlap raster:  
-
-nam<-c("Gaur","Banteng","Buffalo")
-
+# Save Raster:: run this if we want to save High-High overlap raster 
 #for(i in 1:nlayers(m)) {
 #  writeRaster(m[[i]], 
 #              paste0(nam[[i]], "_overlap_allrisk"), 
 #              format="GTiff",overwrite=TRUE)
 #}
 
-# > plot biviate maps with four risk colors (levels)
-m2<-unstack(m)
-m2
-par(mfcol = c(1, 3))
+# plot biviate maps with four risk colors (levels)
 # hh hl lh ll map, 4 colours
-for ( i in 1:length(m2)) { 
-  plot(m2[[i]], frame.plot = FALSE, axes = FALSE, box = FALSE, add = FALSE, legend = F, 
+plot(m, frame.plot = FALSE, axes = FALSE, box = FALSE, add = FALSE, legend = F, 
        col = adjustcolor(as.vector(col.matrix), alpha = 1),
-       main = nam_plot[[i]], cex.main = 1.4) 
-}
+       main = nam_plot, cex.main = 1.2,nc=3) 
 
-##### end bivariate plots ######
+# end bivariate plots #
 
 # > import protected areas raster
 #unstack high-high
 high<-unstack(overlap)
 high
 
-pa_th <- raster("/Users/whorpien/OneDrive - Massey University/R/1working/area_calculation/PA/PA_thai_re.tif")            
+pa_th <- raster("PA_thai_re.tif")            
 pa_th <- resample(pa_th, high[[1]], method="ngb")
 
 extent(pa_th)==extent(high[[1]])
-par(mfcol = c(1, 1))
-plot(pa_th)
+
+plot(pa_th, main ='PA Thai')
 
 # Calculate high-high areas (overlap areas) within inside and outside protected areas
 
@@ -300,18 +269,21 @@ zonlist<-list()
 zonalboth<-list()
 check<-list()
 
+nam<-c("Gaur","Banteng","Buffalo")
+
 for (i in 1:length(high)){
   
   values(high[[i]])[values(high[[i]]) > 0] = 1
   
   # Now croping by presence or absence 
   pres <- high[[i]]
-  
+  plot(pres) #high cattle - high habitat
   unique(values(pres))
   
   values(pres)[values(pres) < 1] = NA
   
   absences <- high[[i]]
+  plot(absences) # the other area than high-high
   
   values(absences)[values(absences) > 0] = NA
   
@@ -371,7 +343,7 @@ for (i in 1:length(high)){
   
   df<-bind_rows(zonlist)
   str(df)
-  write.xlsx(df,'Table_Overlap_Thai_test2.xlsx', row.names = FALSE)
+  write.xlsx(df,'Table_Overlap_Thai_test.xlsx', row.names = FALSE)
 }
 
 # Table 4.1 : Overlap area ------
@@ -470,7 +442,7 @@ print (risk|> group_by(lab_diag) |>
            N = n()))
 table(risk$lab_diag)
 
-#write.xlsx(risk,'risk_overlap_cattle.xlsx')
+write.xlsx(risk,'risk_overlap_cattle.xlsx')
 
 risk1<- st_as_sf(risk, coords = c("x", "y"), 
                crs = crs("+init=epsg:4326"))
@@ -519,7 +491,7 @@ bru <-table(count[[5]]$layer)
 a  <-rbind(tb,hs,lsd,fmd,bru)
 a
 
-#1 = high
+# 1 = high
 tb2<-table(count2[[1]]$layer)
 hs2<-table(count2[[2]]$layer)
 lsd2<-table(count2[[3]]$layer)
@@ -608,30 +580,28 @@ plot(overlap)
 l<-raster("./land_cgls_thai.tif")
 plot(l)
 
-#create list
-tlist <- unstack(overlap)
-tlist
+# Calculate overlap area by land use type
+# Overlap == high cattle density - high habitat suitability 
 
 zonlist<-list()
 zonalboth<-list()
 check<-list()
-namoverlap<-c("Gaur","Banteng","Buffalo")
 
 # Calculate overlapped area in the land use
 
-for (i in 1:length(tlist)){
+for (i in 1:length(high)){
   
-  names(tlist)[i]
-  values(tlist[[i]])[values(tlist[[i]]) > 0] = 1
+  names(high)[i]
+  values(high[[i]])[values(high[[i]]) > 0] = 1
   
   # Now croping by presence or absence 
-  pres <- tlist[[i]]
+  pres <- high[[i]]
   
   unique(values(pres) )
   
   values(pres)[values(pres) < 1] = NA
   
-  absences <- tlist[[i]]
+  absences <- high[[i]]
   values(absences)[values(absences) > 0] = NA
   
   plot(absences,col='red')
@@ -639,7 +609,7 @@ for (i in 1:length(tlist)){
   plot(pres, col='green')# add=TRUE,
   
   # whole raster layer
-  ar<- area(tlist[[i]], na.rm=TRUE)
+  ar<- area(high[[i]], na.rm=TRUE)
   
   # size of the cell in km2
   ar2 <- sum(values(ar), na.rm = TRUE) ### applies a correction for latitude, to km2
@@ -701,14 +671,15 @@ for (i in 1:length(tlist)){
     as.data.frame()%>%
     mutate(percentage_tot = (`Area sqkm`/ sum(`Area sqkm`) * 100)) 
   
-  df<-bind_rows(zonlist)
-  str(df)
-  xlsx::write.xlsx(df,'Table_Overlap_landuse_Thai_test.xlsx', row.names = FALSE)
+  ov<-bind_rows(zonlist)
+  str(ov)
+  xlsx::write.xlsx(ov,'Table_Overlap_landuse_Thai_test.xlsx', row.names = FALSE)
 }
-str(df)
+
+str(ov)
 
 # bar plot
-ggplot(df, aes(x=reorder(label,`Area sqkm`), y=`Area sqkm`,fill=sp_condition))+
+ggplot(ov, aes(x=reorder(label,`Area sqkm`), y=`Area sqkm`,fill=sp_condition))+
   geom_bar(stat='identity', position=position_dodge())+
   # facet_wrap(.~sp_condition,scales = "free_y") +
   
